@@ -17,7 +17,7 @@ message CreateRequest {
   string description = 2;
   int32 amount_of_employees = 3;
   bool registered = 4;
-  string type = 5;
+  client.message.company.v1.CompanyType type = 5;
 }
 message CreateResponse {
   client.message.company.v1.Company company = 1;
