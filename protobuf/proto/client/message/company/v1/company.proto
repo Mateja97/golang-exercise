@@ -6,7 +6,7 @@ message Company {
   string id = 1;
   string name = 2;
   string description = 3;
-  int32 amount_of_employees = 4;
+  uint32 amount_of_employees = 4;
   bool registered = 5;
   CompanyType type = 6;
 }
