@@ -26,11 +26,10 @@ message CreateResponse {
 
 message PatchRequest {
   string id = 1;
-  string name = 2;
-  string description = 3;
-  uint32 amount_of_employees = 4;
-  bool registered = 5;
-  string type = 6;
+  optional string description = 2;
+  optional uint32 amount_of_employees = 3;
+  optional bool registered = 4;
+  optional client.message.company.v1.CompanyType type = 5;
 }
 
 message PatchResponse {
