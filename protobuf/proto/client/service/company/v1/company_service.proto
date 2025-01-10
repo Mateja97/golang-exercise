@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package client.service.company.v1;
+import "client/message/company/v1/company.proto";
+
+service CompanyService {
+  rpc Create (CreateRequest) returns (CreateResponse);
+  rpc Patch (PatchRequest) returns (PatchResponse);
+  rpc Delete (DeleteRequest) returns (DeleteResponse);
+  rpc Get (GetRequest) returns (GetResponse);
+}
+
+
+
+message CreateRequest {
+  string name = 1;
+  string description = 2;
+  int32 amount_of_employees = 3;
+  bool registered = 4;
+  string type = 5;
+}
+message CreateResponse {
+  client.message.company.v1.Company company = 1;
+}
+
+
+message PatchRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int32 amount_of_employees = 4;
+  bool registered = 5;
+  string type = 6;
+}
+
+message PatchResponse {
+  client.message.company.v1.Company company = 1;
+}
+
+message DeleteRequest {
+  string id = 1;
+}
+
+message DeleteResponse {
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  client.message.company.v1.Company company = 1;
+}

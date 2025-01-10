@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package client.message.company.v1;
+
+message Company {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int32 amount_of_employees = 4;
+  bool registered = 5;
+  CompanyType type = 6;
+}
+
+enum CompanyType {
+  COMPANY_TYPE_UNSPECIFIED = 0;
+  COMPANY_TYPE_CORPORATIONS = 1;
+  COMPANY_TYPE_NON_PROFIT = 2;
+  COMPANY_TYPE_COOPERATIVE= 3;
+  COMPANY_TYPE_SOLE_PROPRIETORSHIP = 4;
+}
