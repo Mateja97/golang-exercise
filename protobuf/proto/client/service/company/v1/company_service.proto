@@ -15,7 +15,7 @@ service CompanyService {
 message CreateRequest {
   string name = 1;
   string description = 2;
-  int32 amount_of_employees = 3;
+  uint32 amount_of_employees = 3;
   bool registered = 4;
   client.message.company.v1.CompanyType type = 5;
 }
