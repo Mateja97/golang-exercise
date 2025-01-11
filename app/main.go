@@ -1,37 +1,71 @@
 package main
 
 import (
+	"fmt"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"go.uber.org/zap"
 	"golang-exercise/api"
+	"golang-exercise/config"
+	"golang-exercise/logger"
 	"golang-exercise/storage/pg_storage"
+	"golang-exercise/writer"
 	"google.golang.org/grpc"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 	"log"
 	"net"
+	"strings"
 )
 
 func main() {
-
-	dbURL := "host=localhost user=myuser password=mypassword dbname=postgres port=5432 sslmode=disable"
-
-	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
-
-	if err != nil {
-		log.Fatal("gorm open error:", err)
+	config.Init()
+	if err := logger.Init(); err != nil {
+		log.Fatalf("logger fail to init, error: %v", err)
 	}
-	err = pg_storage.Init(db)
+	var urlBuilder strings.Builder
+	urlBuilder.WriteString(fmt.Sprintf("host=%s ", config.DBHost()))
+	urlBuilder.WriteString(fmt.Sprintf("user=%s ", config.DBUser()))
+	urlBuilder.WriteString(fmt.Sprintf("password=%s ", config.DBPassword()))
+	urlBuilder.WriteString(fmt.Sprintf("dbname=%s ", config.DBName()))
+	urlBuilder.WriteString(fmt.Sprintf("port=%d ", config.DBPort()))
+	urlBuilder.WriteString("sslmode=disable")
+
+	db, err := gorm.Open("postgres", urlBuilder.String())
 	if err != nil {
-		log.Fatal("pg_storage init error:", err)
+		logger.Fatal("gorm open",
+			zap.Error(err),
+		)
+	}
+	err = pgstorage.Init(db)
+	if err != nil {
+		logger.Fatal("pg_storage init fail",
+			zap.Error(err),
+		)
 	}
 
-	lis, err := net.Listen("tcp", "localhost:8080")
+	w, err := writer.NewWriter(
+		writer.Brokers(config.Brokers()...),
+		writer.DestinationTopic(config.DestinationTopic()),
+	)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		logger.Fatal("new writer fail",
+			zap.Error(err),
+		)
+	}
+
+	lis, err := net.Listen("tcp", config.ServerAddress())
+	if err != nil {
+		logger.Fatal("failed to listen",
+			zap.Error(err),
+		)
 	}
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	api.Init(grpcServer)
+	api.Init(grpcServer,
+		api.Writer(w),
+	)
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to run grpc: %v", err)
+		logger.Fatal("failed to run grpc",
+			zap.Error(err),
+		)
 	}
 }

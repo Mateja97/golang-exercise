@@ -2,19 +2,23 @@ package storage
 
 import (
 	"golang-exercise/models"
-	"gorm.io/gorm"
 )
 
 type storage interface {
 	methods
-	Transaction(func(tx *gorm.DB) error) error
+	tx
+	BeginTransaction() error
+}
+
+type tx interface {
+	CommitRollback() error
 }
 
 type methods interface {
-	CreateCompany(company models.Company) error
-	UpdateCompany(company models.Company) error
+	CreateCompany(company *models.Company) error
+	UpdateCompany(company *models.Company) error
 	DeleteCompany(companyID string) error
-	ReadCompany(companyID string) (models.Company, error)
+	ReadCompany(companyID string) (*models.Company, error)
 }
 
 var s storage
@@ -23,22 +27,27 @@ func Register(i storage) {
 	s = i
 }
 
-func Transaction(f func(tx *gorm.DB) error) error {
-	return s.Transaction(f)
+func BeginTransaction() error {
+	return s.BeginTransaction()
 }
 
-func CreateCompany(company models.Company) error {
+func CreateCompany(company *models.Company) error {
 	return s.CreateCompany(company)
 }
 
-func UpdateCompany(company models.Company) error {
+func UpdateCompany(company *models.Company) error {
 	return s.UpdateCompany(company)
 }
 
-func ReadCompany(companyID string) (models.Company, error) {
+func ReadCompany(companyID string) (*models.Company, error) {
 	return s.ReadCompany(companyID)
 }
 
 func DeleteCompany(companyID string) error {
 	return s.DeleteCompany(companyID)
+}
+
+
+func CommitRollback() error {
+	return s.CommitRollback()
 }

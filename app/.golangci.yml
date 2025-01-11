@@ -1,0 +1,14 @@
+linters:
+  enable:
+    - ireturn
+    - goerr113
+    - revive
+    - gosec
+    - errcheck
+    - nilerr
+    - staticcheck
+run:
+  timeout: 5m
+issues:
+  exclude-files:
+    - vendor

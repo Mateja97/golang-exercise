@@ -2,35 +2,60 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"github.com/google/uuid"
 	companyMessage "github.com/mateja97/golang-exercise/protobuf/golang/client/message/company/v1"
 	companyService "github.com/mateja97/golang-exercise/protobuf/golang/client/service/company/v1"
+	"go.uber.org/zap"
 	"golang-exercise/api/codes"
+	"golang-exercise/logger"
 	"golang-exercise/models"
 	"golang-exercise/storage"
-	"gorm.io/gorm"
 )
 
-func (h *handler) Create(ctx context.Context, req *companyService.CreateRequest) (*companyService.CreateResponse, error) {
+func (h *handler) Create(_ context.Context, req *companyService.CreateRequest) (*companyService.CreateResponse, error) {
+	logger.Info("Create request")
+
 	id := uuid.New().String()
 
 	if !validateCreateRequest(req) {
-		fmt.Println("invalid argument")
-		return nil, codes.InvalidArgument
+		logger.Warn("invalid argument")
+		return nil, codes.ErrInvalidArgument
 	}
-	company := companyFromCreateRequest(req, id)
-	err := storage.Transaction(func(tx *gorm.DB) error {
-		if err := storage.CreateCompany(company); err != nil {
-			return err
-		}
-		return nil
-	})
-
+	err := storage.BeginTransaction()
 	if err != nil {
-		fmt.Printf("transaction error: %v", err)
-		return nil, codes.Internal
+		logger.Error("fail begin transaction",
+			zap.Error(err))
+		return nil, codes.ErrInternal
 	}
+
+	defer func() {
+		err = storage.CommitRollback()
+		if err != nil {
+			logger.Error("fail commit rollback",
+				zap.Error(err))
+		}
+	}()
+	company := companyFromCreateRequest(req, id)
+	err = storage.CreateCompany(&company)
+	if err != nil {
+		logger.Error("create company error",
+			zap.Error(err))
+		return nil, codes.ErrInternal
+	}
+
+	event := &models.Event{
+		State:     models.StateCreated,
+		CompanyID: company.ID,
+		Company:   &company,
+	}
+
+	err = h.writer.Write(event)
+	if err != nil {
+		logger.Error("fail to write",
+			zap.Error(err))
+		return nil, codes.ErrInternal
+	}
+
 	return &companyService.CreateResponse{
 		Company: companyToProto(company),
 	}, nil

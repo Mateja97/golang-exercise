@@ -2,65 +2,86 @@ package api
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	companyMessage "github.com/mateja97/golang-exercise/protobuf/golang/client/message/company/v1"
 	companyService "github.com/mateja97/golang-exercise/protobuf/golang/client/service/company/v1"
+	"go.uber.org/zap"
 	"golang-exercise/api/codes"
+	"golang-exercise/logger"
 	"golang-exercise/models"
 	"golang-exercise/storage"
-	"gorm.io/gorm"
 )
 
-func (h *handler) Patch(ctx context.Context, request *companyService.PatchRequest) (*companyService.PatchResponse, error) {
-
+func (h *handler) Patch(_ context.Context, request *companyService.PatchRequest) (*companyService.PatchResponse, error) {
+	logger.Info("Patch request", zap.String("id", request.GetId()))
 	if !validatePatchRequest(request) {
-		fmt.Println("invalid argument")
-		return nil, codes.InvalidArgument
+		logger.Warn("invalid argument")
+		return nil, codes.ErrInvalidArgument
 	}
-	var company models.Company
-	var err error
-	err = storage.Transaction(func(tx *gorm.DB) error {
-		if company, err = storage.ReadCompany(request.GetId()); err != nil {
-			return err
-		}
-		if request.Description != nil {
-			company.Description = request.GetDescription()
-		}
-		if request.AmountOfEmployees != nil {
-			company.AmountOfEmployees = request.GetAmountOfEmployees()
-		}
-		if request.Registered != nil {
-			company.Registered = request.GetRegistered()
-		}
-		if request.Type != nil {
-			company.Type = companyTypeFromProto(request.GetType())
-		}
-
-		if err = storage.UpdateCompany(company); err != nil {
-			return err
-		}
-		return nil
-	})
-	if errors.Is(err, sql.ErrNoRows) {
-		fmt.Println("company not found")
-		return nil, codes.NotFound
-	}
+	err := storage.BeginTransaction()
 	if err != nil {
-		fmt.Printf("transaction error: %v", err)
-		return nil, codes.Internal
+		logger.Error("fail begin transaction",
+			zap.Error(err))
+		return nil, codes.ErrInternal
+	}
+
+	defer func() {
+		err = storage.CommitRollback()
+		if err != nil {
+			logger.Error("fail commit rollback",
+				zap.Error(err))
+		}
+	}()
+
+	company, err := storage.ReadCompany(request.GetId())
+	if err != nil {
+		logger.Error("read company error",
+			zap.Error(err))
+		return nil, codes.ErrInternal
+	}
+	if company == nil {
+		logger.Info("company not found")
+		return nil, codes.ErrNotFound
+	}
+	if request.Description != nil {
+		company.Description = request.GetDescription()
+	}
+	if request.AmountOfEmployees != nil {
+		company.AmountOfEmployees = request.GetAmountOfEmployees()
+	}
+	if request.Registered != nil {
+		company.Registered = request.GetRegistered()
+	}
+	if request.Type != nil {
+		company.Type = companyTypeFromProto(request.GetType())
+	}
+
+	if err = storage.UpdateCompany(company); err != nil {
+		logger.Error("update company error",
+			zap.Error(err))
+		return nil, codes.ErrInternal
+	}
+	event := &models.Event{
+		State:     models.StateUpdated,
+		CompanyID: company.ID,
+		Company:   company,
+	}
+
+	err = h.writer.Write(event)
+	if err != nil {
+		logger.Error("fail to write",
+			zap.Error(err))
+		return nil, codes.ErrInternal
 	}
 
 	return &companyService.PatchResponse{
-		Company: companyToProto(company),
+		Company: companyToProto(*company),
 	}, nil
 }
 
 func validatePatchRequest(request *companyService.PatchRequest) bool {
 
-	if !IsValidUUID(request.Id) {
+	if !isValidUUID(request.Id) {
 		return false
 	}
 	if request.Description != nil && len(request.GetDescription()) > 3000 {
@@ -72,7 +93,7 @@ func validatePatchRequest(request *companyService.PatchRequest) bool {
 	return true
 }
 
-func IsValidUUID(u string) bool {
+func isValidUUID(u string) bool {
 	_, err := uuid.Parse(u)
 	return err == nil
 }

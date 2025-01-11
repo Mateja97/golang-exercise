@@ -1,57 +1,88 @@
-package pg_storage
+package pgstorage
 
 import (
-	_ "github.com/lib/pq"
+	"errors"
+	"github.com/jinzhu/gorm"
 	"golang-exercise/models"
 	"golang-exercise/storage"
-	"gorm.io/gorm"
 )
 
 type postgresStorage struct {
 	db *gorm.DB
+	tx *gorm.DB
 }
+
+var ErrNoActiveTransaction = errors.New("no active transaction to commit or rollback")
 
 var s *postgresStorage
 
-func init() {
-	s = &postgresStorage{}
-}
-
 func Init(db *gorm.DB) error {
+	s = new(postgresStorage)
+
 	s.db = db
 	storage.Register(s)
 
-	err := db.AutoMigrate(&models.Company{})
+	err := db.AutoMigrate(new(models.Company)).Error
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p postgresStorage) CreateCompany(company models.Company) error {
-	return p.db.Create(company).Error
+func (p *postgresStorage) CreateCompany(company *models.Company) error {
+	return p.tx.Create(company).Error
 }
 
-func (p postgresStorage) UpdateCompany(company models.Company) error {
+func (p *postgresStorage) UpdateCompany(company *models.Company) error {
 	updates := map[string]interface{}{
 		"Description":       company.Description,
 		"AmountOfEmployees": company.AmountOfEmployees,
 		"Registered":        company.Registered,
 		"Type":              company.Type,
 	}
-	return p.db.Model(&company).Updates(updates).Error
+	return p.tx.Model(company).Updates(updates).Error
+
 }
 
-func (p postgresStorage) DeleteCompany(companyID string) error {
-	return p.db.Delete(&models.Company{}, "id = ?", companyID).Error
+func (p *postgresStorage) DeleteCompany(companyID string) error {
+	return p.tx.Delete(&models.Company{}, "id = ?", companyID).Error
 }
 
-func (p postgresStorage) ReadCompany(companyID string) (models.Company, error) {
-	var company models.Company
-	err := p.db.First(&company, "id = ?", companyID).Error
-	return company, err
+func (p *postgresStorage) ReadCompany(companyID string) (*models.Company, error) {
+	company := new(models.Company)
+
+	err := p.tx.First(company, "id = ?", companyID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return company, nil
 }
 
-func (p postgresStorage) Transaction(f func(tx *gorm.DB) error) error {
-	return p.db.Transaction(f)
+func (p *postgresStorage) BeginTransaction() error {
+	p.tx = p.db.Begin()
+	return p.tx.Error
+}
+
+func (p *postgresStorage) CommitRollback() error {
+	if p.tx == nil {
+		return ErrNoActiveTransaction
+	}
+
+	if r := recover(); r != nil {
+		if err := p.tx.Rollback().Error; err != nil {
+			return err
+		}
+	} else if p.db.Error == nil {
+		if err := p.tx.Commit().Error; err != nil {
+			return err
+		}
+	} else {
+		if err := p.tx.Rollback().Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

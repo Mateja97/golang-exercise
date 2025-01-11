@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	InvalidArgument = status.Error(codes.InvalidArgument, " request does not satisfy the requirements")
-	NotFound        = status.Error(codes.NotFound, "data not found")
-	Internal        = status.Error(codes.NotFound, "internal error")
+	ErrInvalidArgument = status.Error(codes.InvalidArgument, " request does not satisfy the requirements")
+	ErrNotFound        = status.Error(codes.NotFound, "data not found")
+	ErrInternal        = status.Error(codes.Internal, "internal error")
 )
