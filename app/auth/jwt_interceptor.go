@@ -28,7 +28,6 @@ func JWTInterceptor(secretKey []byte) grpc.UnaryServerInterceptor {
 			"/client.service.company.v1.CompanyService.Get": true,
 		}
 		if methodsToSkip[info.FullMethod] {
-			log.Println(info.FullMethod)
 			return handler(ctx, req)
 		}
 
