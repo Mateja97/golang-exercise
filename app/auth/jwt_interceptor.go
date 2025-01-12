@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"log"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
