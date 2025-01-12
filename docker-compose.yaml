@@ -54,6 +54,7 @@ services:
     build: ./app
     container_name: company-service-app
     environment:
+      SECRET_KEY: XM_SECRET_KEY
       SERVER_ADDRESS: :8080
       DB_HOST: postgres
       DB_PORT: 5432

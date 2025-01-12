@@ -6,6 +6,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"go.uber.org/zap"
 	"golang-exercise/api"
+	"golang-exercise/auth"
 	"golang-exercise/config"
 	"golang-exercise/logger"
 	"golang-exercise/storage/pg_storage"
@@ -58,8 +59,9 @@ func main() {
 			zap.Error(err),
 		)
 	}
-	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(opts...)
+	byteSecretKey := []byte(config.SecretKey())
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(auth.JWTInterceptor(byteSecretKey)))
 	api.Init(grpcServer,
 		api.Writer(w),
 	)

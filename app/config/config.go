@@ -9,12 +9,16 @@ import (
 type Config struct {
 	brokers          []string
 	destinationTopic string
-	serverAddress    string
-	dbName           string
-	dbHost           string
-	dbPort           int
-	dbUser           string
-	dbPassword       string
+
+	serverAddress string
+
+	dbName     string
+	dbHost     string
+	dbPort     int
+	dbUser     string
+	dbPassword string
+
+	secretKey string
 }
 
 var c *Config
@@ -23,8 +27,8 @@ func Init() {
 	c = new(Config)
 
 	c.serverAddress = os.Getenv("SERVER_ADDRESS")
-
-	c.dbPort = 5432 // default port
+	c.secretKey = os.Getenv("SECRET_KEY")
+	c.dbPort = 5432
 	c.dbHost = os.Getenv("DB_HOST")
 
 	dbPortEnv := os.Getenv("DB_PORT")
@@ -69,4 +73,8 @@ func Brokers() []string {
 
 func DestinationTopic() string {
 	return c.destinationTopic
+}
+
+func SecretKey() string {
+	return c.secretKey
 }
