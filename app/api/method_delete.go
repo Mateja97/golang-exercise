@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	companyService "github.com/mateja97/golang-exercise/protobuf/golang/client/service/company/v1"
 	"go.uber.org/zap"
 	"golang-exercise/api/codes"
@@ -14,7 +13,7 @@ import (
 func (h *handler) Delete(_ context.Context, request *companyService.DeleteRequest) (*companyService.DeleteResponse, error) {
 	logger.Info("Delete request", zap.String("id", request.GetId()))
 	if !isValidUUID(request.GetId()) {
-		fmt.Println("invalid argument")
+		logger.Warn("invalid argument")
 		return nil, codes.ErrInvalidArgument
 	}
 	err := storage.BeginTransaction()
@@ -46,11 +45,6 @@ func (h *handler) Delete(_ context.Context, request *companyService.DeleteReques
 	if err != nil {
 		logger.Error("fail to write",
 			zap.Error(err))
-		return nil, codes.ErrInternal
-	}
-
-	if err != nil {
-		fmt.Printf("transaction error: %v", err)
 		return nil, codes.ErrInternal
 	}
 
